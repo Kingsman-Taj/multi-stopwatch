@@ -88,6 +88,8 @@ let watches = Array(MAX_STOPWATCHES).fill().map(() => ({
 let selected = 0;
 let messages = [];
 let showLapHistory = false;
+let graphScroll = 0;
+
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -132,6 +134,10 @@ document.addEventListener('keydown', e => {
 
   if (e.key === '4' || e.key === 'ArrowLeft') selected = (selected - 1 + MAX_STOPWATCHES) % MAX_STOPWATCHES;
   if (e.key === '6' || e.key === 'ArrowRight') selected = (selected + 1) % MAX_STOPWATCHES;
+
+    if (e.key === '3') {  graphScroll = Math.max(0, graphScroll - 1);}
+
+    if (e.key === '9') {graphScroll++;}
 
   if (e.key === '5') toggleWatch(selected);
   if (e.key === '#') addLap(selected);
