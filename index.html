@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Multi Stopwatch</title>
+<style>
+  body { margin:0; background:#000; color:#0f0; font-family:monospace; overflow:hidden; padding:0; }
+  canvas { image-rendering:pixelated; border:2px solid #0f0; display:block; margin:5px auto; }
+  #ui { position:absolute; top:5px; left:5px; right:5px; color:#0ff; font-size:12px; text-align:center; z-index:10; }
+  #log { position:absolute; bottom:5px; left:5px; right:5px; height:45px; overflow:hidden; color:#ff0; font-size:10px; z-index:10; }
+</style>
+</head>
+<body>
+<canvas id="game" width="240" height="320"></canvas>
+
+<div id="ui">
+  <strong>MULTI STOPWATCH</strong> | #<span id="selected">1</span>
+</div>
+<div id="log"></div>
+
+<script>
+// =============== LAP DELTA GRAPH ===============
+const MAX_STOPWATCHES = 10;
+let watches = Array(MAX_STOPWATCHES).fill().map(() => ({
+  running: false,
+  startTime: 0,
+  accumulated: 0,
+  laps: []        // stores absolute times
+}));
+
+let selected = 0;
+let messages = [];
+let showLapHistory = false;
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Load saved data
+const saved = localStorage.getItem("multiStopwatch");
+if (saved) {
+  try {
+    const data = JSON.parse(saved);
+    watches = data.map(w => ({
+      running: false,
+      startTime: 0,
+      accumulated: w.accumulated || 0,
+      laps: w.laps || []
+    }));
+  } catch(e) {}
+}
+
+document.addEventListener('keydown', e => {
+  e.preventDefault();
+
+  if (e.key === '4' || e.key === 'ArrowLeft') selected = (selected - 1 + MAX_STOPWATCHES) % MAX_STOPWATCHES;
+  if (e.key === '6' || e.key === 'ArrowRight') selected = (selected + 1) % MAX_STOPWATCHES;
+
+  if (e.key === '5') toggleWatch(selected);
+  if (e.key === '#') addLap(selected);
+  if (e.key === '*') resetWatch(selected);
+  if (e.key === '8') showLapHistory = !showLapHistory;
+
+  draw();
+  updateUI();
+});
+
+function toggleWatch(i) { /* same as before */ 
+  const w = watches[i];
+  if (!w.running) {
+    w.running = true;
+    w.startTime = Date.now();
+    addMessage(`#${i+1} STARTED`);
+  } else {
+    w.running = false;
+    w.accumulated += Date.now() - w.startTime;
+    addMessage(`#${i+1} PAUSED`);
+  }
+  saveData();
+}
+
+function addLap(i) {
+  const w = watches[i];
+  if (!w.running) return;
+  const current = w.accumulated + (Date.now() - w.startTime);
+  const lapTime = formatTime(current);
+  w.laps.push(current);           // Store raw milliseconds
+  addMessage(`Lap ${w.laps.length}`);
+  saveData();
+}
+
+function resetWatch(i) {
+  const w = watches[i];
+  w.running = false;
+  w.accumulated = 0;
+  w.laps = [];
+  showLapHistory = false;
+  addMessage(`#${i+1} RESET`);
+  saveData();
+}
+
+function addMessage(msg) {
+  messages.unshift(msg);
+  if (messages.length > 3) messages.pop();
+}
+
+function formatTime(ms) {
+  const total = Math.floor(ms / 1000);
+  const min = Math.floor(total / 60);
+  const sec = total % 60;
+  const cs = Math.floor((ms % 1000) / 10);
+  return `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${cs.toString().padStart(2,'0')}`;
+}
+
+function saveData() {
+  const toSave = watches.map(w => ({
+    accumulated: w.accumulated + (w.running ? Date.now() - w.startTime : 0),
+    laps: w.laps
+  }));
+  localStorage.setItem("multiStopwatch", JSON.stringify(toSave));
+}
+
+// =============== DRAW WITH LAP DELTA GRAPH ===============
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 240, 320);
+
+  const w = watches[selected];
+
+  if (showLapHistory && w.laps.length > 0) {
+    drawLapHistoryGraph(w);
+  } else {
+    drawNormalView();
+  }
+
+  ctx.fillStyle = '#555';
+  ctx.font = '9px monospace';
+  ctx.fillText("5:Start/Pause  #:Lap  *:Reset  8:Graph", 20, 285);
+   
+  ctx.fillText(" 4/6:Switch", 20, 305);
+    
+}
+
+function drawNormalView() {
+  for (let i = 0; i < MAX_STOPWATCHES; i++) {
+    const watch = watches[i];
+    const y = 32 + i * 24;
+    const isSelected = i === selected;
+    const time = watch.running ? watch.accumulated + (Date.now() - watch.startTime) : watch.accumulated;
+
+    if (isSelected) {
+      ctx.fillStyle = '#003300';
+      ctx.fillRect(4, y-9, 232, 27);
+    }
+
+    ctx.fillStyle = isSelected ? '#0ff' : '#0f0';
+    ctx.fillText(`${i+1}. ${formatTime(time)}`, 12, y);
+
+    ctx.fillStyle = watch.running ? '#0f0' : '#666';
+    ctx.fillText(watch.running ? "● RUN" : "■ STOP", 158, y);
+
+    if (watch.laps.length > 0) {
+      ctx.fillStyle = '#ff0';
+      ctx.fillText(`L${watch.laps.length}`, 215, y);
+    }
+  }
+}
+
+function drawLapHistoryGraph(w) {
+  ctx.fillStyle = '#0f0';
+  ctx.fillText(`#${selected+1} LAP HISTORY (Delta)`, 12, 28);
+
+  // Calculate lap deltas
+  const deltas = [];
+  let prevTime = 0;
+  w.laps.forEach(time => {
+    deltas.push(time - prevTime);
+    prevTime = time;
+  });
+
+  const startY = 52;
+
+  // List laps
+  for (let i = 0; i < Math.min(6, deltas.length); i++) {
+    ctx.fillStyle = '#0ff';
+    ctx.fillText(`${(i+1).toString().padStart(2,'0')}. ${formatTime(deltas[i])}`, 15, startY + i*18);
+  }
+
+  // Bar Graph - Lap Delta
+  if (deltas.length > 1) {
+    ctx.fillStyle = '#0f0';
+    ctx.fillText("LAP TIME GRAPH (seconds)", 15, 190);
+
+    const graphY = 205;
+    const barWidth = 20;
+    const maxDelta = Math.max(...deltas);
+    const scale = 75 / (maxDelta || 1);
+
+    for (let i = 0; i < Math.min(8, deltas.length); i++) {
+      const height = Math.floor(deltas[i] * scale);
+      const x = 18 + i * 26;
+
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(x, graphY + 70 - height, barWidth, height);
+
+      ctx.fillStyle = '#aaa';
+      ctx.fillText((i+1).toString(), x + 6, graphY + 85);
+    }
+
+    // X-Y Axis
+    ctx.strokeStyle = '#555';
+    ctx.beginPath();
+    ctx.moveTo(15, graphY + 70);
+    ctx.lineTo(230, graphY + 70);     // X axis
+    ctx.moveTo(15, graphY);
+    ctx.lineTo(15, graphY + 75);      // Y axis
+    ctx.stroke();
+  }
+}
+
+function updateUI() {
+  document.getElementById('selected').textContent = selected + 1;
+  document.getElementById('log').innerHTML = messages.join('<br>');
+}
+
+function loop() {
+  draw();
+  updateUI();
+  requestAnimationFrame(loop);
+}
+
+// =============== START ===============
+addMessage("Ready | 5=Start/Pause | #=Lap | *=Reset | 8=Graph");
+draw();
+loop();
+</script>
+</body>
+</html>
