@@ -2,87 +2,54 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width,height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
 <title>Multi Stopwatch</title>
-
 <style>
 html, body {
-    margin: 0;
-    padding: 0;
-    width: 100vw;
-    height: 100vh;
+    margin: 0; padding: 0;
+    width: 100vw; height: 100vh;
     overflow: hidden;
     background: #000;
     font-family: monospace;
 }
-
-body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-#container {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-}
-
 canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
     display: block;
     image-rendering: pixelated;
 }
-
 #ui {
     position: absolute;
-    top: 5px;
-    left: 0;
-    width: 100%;
+    top: 2vh;
+    left: 0; right: 0;
     text-align: center;
     color: #0ff;
-    font-size:  3.5vw;
+    font-size: 4.5vw;
     z-index: 10;
 }
-
 #log {
     position: absolute;
-    bottom: 5px;
-    left: 5px;
-    right: 5px;
+    bottom: 2vh;
+    left: 2vw; right: 2vw;
     color: #ff0;
-    font-size: 10px;
+    font-size: 3vw;
     z-index: 10;
 }
 </style>
 </head>
-
-
-
 <body>
-
-  <div id="container">
 <canvas id="game"></canvas>
-
 <div id="ui">
   <strong>MULTI STOPWATCH</strong> | #<span id="selected">1</span>
 </div>
 <div id="log"></div>
 
 <script>
-// =============== LAP DELTA GRAPH ===============
+// =============== FULLY RESPONSIVE ===============
 const MAX_STOPWATCHES = 10;
 let watches = Array(MAX_STOPWATCHES).fill().map(() => ({
   running: false,
   startTime: 0,
   accumulated: 0,
-  laps: []        // stores absolute times
+  laps: []
 }));
 
 let selected = 0;
@@ -90,30 +57,19 @@ let messages = [];
 let showLapHistory = false;
 let graphScroll = 0;
 
-
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-function sx(v){
-  return v * canvas.width / 240;
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
+resize();
+window.addEventListener('resize', resize);
 
-function sy(v){
-  return v * canvas.height / 320;
-}
-
-function font(size) {
-    return `${Math.floor(sy(size))}px monospace`;
-}
-
-
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+function sx(v) { return v * canvas.width / 240; }
+function sy(v) { return v * canvas.height / 320; }
+function font(size) { return `${Math.floor(sy(size))}px monospace`; }
 
 // Load saved data
 const saved = localStorage.getItem("multiStopwatch");
@@ -135,14 +91,13 @@ document.addEventListener('keydown', e => {
   if (e.key === '4' || e.key === 'ArrowLeft') selected = (selected - 1 + MAX_STOPWATCHES) % MAX_STOPWATCHES;
   if (e.key === '6' || e.key === 'ArrowRight') selected = (selected + 1) % MAX_STOPWATCHES;
 
-    if (e.key === '3') {  graphScroll = Math.max(0, graphScroll - 1);}
-
-    if (e.key === '9') {graphScroll++;}
-
   if (e.key === '5') toggleWatch(selected);
   if (e.key === '#') addLap(selected);
   if (e.key === '*') resetWatch(selected);
   if (e.key === '8') showLapHistory = !showLapHistory;
+
+  if (e.key === '3') graphScroll = Math.max(0, graphScroll - 1);
+  if (e.key === '9') graphScroll++;
 
   draw();
   updateUI();
@@ -206,106 +161,98 @@ function saveData() {
 // =============== DRAW WITH LAP DELTA GRAPH ===============
 function draw() {
   ctx.fillStyle = '#000';
- ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-
-  const w = watches[selected];
-
-  if (showLapHistory && w.laps.length > 0) {
-    drawLapHistoryGraph(w);
+  if (showLapHistory && watches[selected].laps.length > 0) {
+    drawLapHistoryGraph();
   } else {
     drawNormalView();
   }
 
   ctx.fillStyle = '#9ee';
   ctx.font = font(9);
-  // ctx.font = '9px monospace';
-  // ctx.fillText("5:Start/Pause  #:Lap  *:Reset  8:Graph", 20, 285);
-   
-  // ctx.fillText(" 4/6:Switch", 20, 305); 
-
-  ctx.fillText(
-    "5:Start/Pause  #:Lap  *:Reset  8:Graph", 10, canvas.height - 35);
-
-  ctx.fillText(
-    "4/6:Switch", 10, canvas.height - 15);
-    
+  ctx.fillText("5:Start/Pause  #:Lap  *:Reset  8:Graph", sx(10), canvas.height - sy(38));
+  ctx.fillText("4/6:Switch   3↑ 9↓:Scroll", sx(10), canvas.height - sy(22));
 }
 
 function drawNormalView() {
+  const itemHeight = sy(26);
+  const startY = sy(45);
+
+  ctx.font = font(14);
+
   for (let i = 0; i < MAX_STOPWATCHES; i++) {
-    const watch = watches[i];
-    const y = 32 + i * 24;
+    const w = watches[i];
+    const y = startY + i * itemHeight;
     const isSelected = i === selected;
-    const time = watch.running ? watch.accumulated + (Date.now() - watch.startTime) : watch.accumulated;
+    const time = w.running ? w.accumulated + (Date.now() - w.startTime) : w.accumulated;
 
     if (isSelected) {
       ctx.fillStyle = '#003300';
-      ctx.fillRect(4, y-9, 232, 27);
+      ctx.fillRect(sx(8), y - sy(8), canvas.width - sx(16), itemHeight);
     }
 
     ctx.fillStyle = isSelected ? '#0ff' : '#0f0';
-    ctx.fillText(`${i+1}. ${formatTime(time)}`, 12, y);
+    ctx.fillText(`${i+1}. ${formatTime(time)}`, sx(18), y + sy(4));
 
-    ctx.fillStyle = watch.running ? '#0f0' : '#666';
-    ctx.fillText(watch.running ? "● RUN" : "■ STOP", 158, y);
+    ctx.font = font(11);
+    ctx.fillStyle = w.running ? '#0f0' : '#666';
+    ctx.fillText(w.running ? "● RUN" : "■ STOP", sx(172), y + sy(4));
 
-    if (watch.laps.length > 0) {
+    if (w.laps.length > 0) {
       ctx.fillStyle = '#ff0';
-      ctx.fillText(`L${watch.laps.length}`, 215, y);
+      ctx.fillText(`L${w.laps.length}`, sx(215), y + sy(4));
     }
+    ctx.font = font(14);
   }
 }
 
-function drawLapHistoryGraph(w) {
+function drawLapHistoryGraph() {
+  const w = watches[selected];
+  ctx.font = font(13);
   ctx.fillStyle = '#0f0';
-  ctx.fillText(`#${selected+1} LAP HISTORY (Delta)`, 12, 28);
+  ctx.fillText(`#${selected+1} - LAP DELTA`, sx(12), sy(32));
 
-  // Calculate lap deltas
   const deltas = [];
-  let prevTime = 0;
-  w.laps.forEach(time => {
-    deltas.push(time - prevTime);
-    prevTime = time;
+  let prev = 0;
+  w.laps.forEach(t => {
+    deltas.push(t - prev);
+    prev = t;
   });
 
-  const startY = 52;
+  const startIdx = graphScroll;
+  const lineHeight = sy(21);
 
-  // List laps
-  for (let i = 0; i < Math.min(6, deltas.length); i++) {
+  for (let i = 0; i < 7; i++) {
+    const idx = startIdx + i;
+    if (idx >= deltas.length) break;
     ctx.fillStyle = '#0ff';
-    ctx.fillText(`${(i+1).toString().padStart(2,'0')}. ${formatTime(deltas[i])}`, 15, startY + i*18);
+    ctx.fillText(`${(idx+1).toString().padStart(2,'0')}. ${formatTime(deltas[idx])}`, sx(18), sy(58) + i * lineHeight);
   }
 
-  // Bar Graph - Lap Delta
+  // Graph
   if (deltas.length > 1) {
     ctx.fillStyle = '#0f0';
-    ctx.fillText("LAP TIME GRAPH (seconds)", 15, 190);
+    ctx.fillText("LAP TIME GRAPH", sx(15), sy(205));
 
-    const graphY = 205;
-    const barWidth = 20;
+    const graphY = sy(220);
     const maxDelta = Math.max(...deltas);
-    const scale = 75 / (maxDelta || 1);
+    const scale = sy(72) / (maxDelta || 1);
+    const barW = sx(19);
 
-    for (let i = 0; i < Math.min(8, deltas.length); i++) {
-      const height = Math.floor(deltas[i] * scale);
-      const x = 18 + i * 26;
+    for (let i = 0; i < 8; i++) {
+      const idx = startIdx + i;
+      if (idx >= deltas.length) break;
+      const h = Math.floor(deltas[idx] * scale);
+      const x = sx(22 + i * 26);
 
       ctx.fillStyle = '#0f0';
-      ctx.fillRect(x, graphY + 70 - height, barWidth, height);
+      ctx.fillRect(x, graphY + sy(68) - h, barW, h);
 
       ctx.fillStyle = '#aaa';
-      ctx.fillText((i+1).toString(), x + 6, graphY + 85);
+      ctx.font = font(9);
+      ctx.fillText((idx+1).toString(), x + sx(5), graphY + sy(85));
     }
-
-    // X-Y Axis
-    ctx.strokeStyle = '#555';
-    ctx.beginPath();
-    ctx.moveTo(15, graphY + 70);
-    ctx.lineTo(230, graphY + 70);     // X axis
-    ctx.moveTo(15, graphY);
-    ctx.lineTo(15, graphY + 75);      // Y axis
-    ctx.stroke();
   }
 }
 
@@ -320,12 +267,9 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// =============== START ===============
-addMessage("Ready | 5=Start/Pause | #=Lap | *=Reset | 8=Graph");
+addMessage("Ready | 5=Start/Pause | #=Lap | *=Reset | 8=Graph | 3/9=Scroll");
 draw();
 loop();
 </script>
-
-</div>
 </body>
 </html>
