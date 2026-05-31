@@ -2,16 +2,73 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width,height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
 <title>Multi Stopwatch</title>
+
 <style>
-  body { margin:0; background:#000; color:#0f0; font-family:monospace; overflow:hidden; padding:0; }
-  canvas { image-rendering:pixelated; border:2px solid #0f0; display:block; margin:5px auto; }
-  #ui { position:absolute; top:5px; left:5px; right:5px; color:#0ff; font-size:12px; text-align:center; z-index:10; }
-  #log { position:absolute; bottom:5px; left:5px; right:5px; height:45px; overflow:hidden; color:#ff0; font-size:10px; z-index:10; }
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+    font-family: monospace;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    image-rendering: pixelated;
+}
+
+#ui {
+    position: absolute;
+    top: 5px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: #0ff;
+    font-size:  3.5vw;
+    z-index: 10;
+}
+
+#log {
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    right: 5px;
+    color: #ff0;
+    font-size: 10px;
+    z-index: 10;
+}
 </style>
 </head>
+
+
+
 <body>
-<canvas id="game" width="240" height="320"></canvas>
+
+  <div id="container">
+<canvas id="game"></canvas>
 
 <div id="ui">
   <strong>MULTI STOPWATCH</strong> | #<span id="selected">1</span>
@@ -34,6 +91,27 @@ let showLapHistory = false;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+
+function sx(v){
+  return v * canvas.width / 240;
+}
+
+function sy(v){
+  return v * canvas.height / 320;
+}
+
+function font(size) {
+    return `${Math.floor(sy(size))}px monospace`;
+}
+
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Load saved data
 const saved = localStorage.getItem("multiStopwatch");
@@ -122,7 +200,8 @@ function saveData() {
 // =============== DRAW WITH LAP DELTA GRAPH ===============
 function draw() {
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 240, 320);
+ ctx.fillRect(0, 0, canvas.width, canvas.height);
+
 
   const w = watches[selected];
 
@@ -132,11 +211,18 @@ function draw() {
     drawNormalView();
   }
 
-  ctx.fillStyle = '#555';
-  ctx.font = '9px monospace';
-  ctx.fillText("5:Start/Pause  #:Lap  *:Reset  8:Graph", 20, 285);
+  ctx.fillStyle = '#9ee';
+  ctx.font = font(9);
+  // ctx.font = '9px monospace';
+  // ctx.fillText("5:Start/Pause  #:Lap  *:Reset  8:Graph", 20, 285);
    
-  ctx.fillText(" 4/6:Switch", 20, 305);
+  // ctx.fillText(" 4/6:Switch", 20, 305); 
+
+  ctx.fillText(
+    "5:Start/Pause  #:Lap  *:Reset  8:Graph", 10, canvas.height - 35);
+
+  ctx.fillText(
+    "4/6:Switch", 10, canvas.height - 15);
     
 }
 
@@ -233,5 +319,7 @@ addMessage("Ready | 5=Start/Pause | #=Lap | *=Reset | 8=Graph");
 draw();
 loop();
 </script>
+
+</div>
 </body>
 </html>
