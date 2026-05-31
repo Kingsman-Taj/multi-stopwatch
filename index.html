@@ -97,12 +97,20 @@ document.addEventListener('keydown', e => {
   if (e.key === '5' || e.key === 'Enter') toggleWatch(selected);
   if (e.key === '#') addLap(selected);
   if (e.key === '*') resetWatch(selected);
-  if (e.key === '8') showLapHistory = !showLapHistory;
-
-  // Scroll controls
-  if (e.key === '3') listScroll = Math.max(0, listScroll - 1);
-  if (e.key === '9') listScroll = Math.min(MAX_STOPWATCHES - 5, listScroll + 1);
-
+  if (e.key === '8') 
+  { showLapHistory = !showLapHistory;
+    graphScroll = 0;
+  }
+  
+  // === SCROLLING ===
+  if (e.key === '3') {
+    if (showLapHistory) graphScroll = Math.max(0, graphScroll - 1);
+    else listScroll = Math.max(0, listScroll - 1);
+  }
+  if (e.key === '9') {
+    if (showLapHistory) graphScroll++;
+    else listScroll = Math.min(MAX_STOPWATCHES - 5, listScroll + 1);
+  }
   draw();
   updateUI();
 });
@@ -215,23 +223,63 @@ function drawScrollableList() {
 }
 
 function drawLapHistoryGraph() {
-  // (Same as previous version - kept for brevity)
   const w = watches[selected];
-  ctx.font = font(14);
+  ctx.font = font(15);
   ctx.fillStyle = '#0f0';
-  ctx.fillText(`#${selected+1} LAP DELTA`, sx(15), sy(35));
+  ctx.fillText(`#${selected+1} - LAP DELTA`, sx(15), sy(35));
 
   const deltas = [];
   let prev = 0;
-  w.laps.forEach(t => { deltas.push(t - prev); prev = t; });
+  w.laps.forEach(t => {
+    deltas.push(t - prev);
+    prev = t;
+  });
 
-  for (let i = 0; i < 7; i++) {
+  // List
+  for (let i = 0; i < 6; i++) {
     const idx = graphScroll + i;
     if (idx >= deltas.length) break;
     ctx.fillStyle = '#0ff';
-    ctx.fillText(`${(idx+1).toString().padStart(2,'0')}. ${formatTime(deltas[idx])}`, sx(20), sy(65) + i * sy(22));
+    ctx.fillText(`${(idx+1).toString().padStart(2,'0')}. ${formatTime(deltas[idx])}`, sx(20), sy(68) + i * sy(24));
+  }
+
+  // === GRAPH BAR DISPLAY ===
+  if (deltas.length > 1) {
+    ctx.fillStyle = '#0f0';
+    ctx.fillText("LAP TIME GRAPH", sx(18), sy(195));
+
+    const graphY = sy(215);           // Moved higher
+    const maxDelta = Math.max(...deltas);
+    const scale = sy(65) / (maxDelta || 1);   // Reduced height
+    const barWidth = sx(19);
+
+    for (let i = 0; i < 7; i++) {
+      const idx = graphScroll + i;
+      if (idx >= deltas.length) break;
+
+      const height = Math.floor(deltas[idx] * scale);
+      const x = sx(25 + i * 27);
+
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(x, graphY + sy(65) - height, barWidth, height);
+
+      ctx.fillStyle = '#aaa';
+      ctx.font = font(10);
+      ctx.fillText((idx+1).toString(), x + sx(6), graphY + sy(82));
+    }
+
+    // X-Y Axis
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx(18), graphY + sy(65));
+    ctx.lineTo(sx(225), graphY + sy(65));     // X axis
+    ctx.moveTo(sx(18), graphY);
+    ctx.lineTo(sx(18), graphY + sy(70));      // Y axis
+    ctx.stroke();
   }
 }
+
 
 function updateUI() {
   document.getElementById('selected').textContent = selected + 1;
